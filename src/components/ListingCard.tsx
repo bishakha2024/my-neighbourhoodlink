@@ -1,3 +1,4 @@
+import { SaveButton } from './SaveButton';
 import { router } from 'expo-router';
 import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -11,7 +12,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
     <View style={styles.body}>
       <View style={styles.top}><Text style={styles.title} numberOfLines={1}>{listing.title}</Text><View style={styles.badge}><Text style={styles.badgeText}>{badge}</Text></View></View>
       <Text style={styles.meta}>{listing.category} • {listing.location}</Text>
-      <Text style={styles.seller}>by {listing.sellerName}</Text>
+      <Text style={styles.seller}>by {listing.sellerName}</Text><SaveButton kind="listing" id={listing.id} />
     </View>
   </Pressable>;
 }

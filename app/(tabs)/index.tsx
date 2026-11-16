@@ -10,7 +10,7 @@ import { useAuth } from '../../src/context/AuthContext';
 import { colors, shadow } from '../../src/theme/colors';
 
 const categories = [
-  ['🛠️', 'Tools'], ['🏠', 'Home'], ['🚲', 'Sports'], ['🧸', 'Kids'], ['🌱', 'Garden'], ['📦', 'Other']
+  ['🛠️', 'Tools'], ['🏠', 'Home'], ['🚲', 'Sports'], ['🧸', 'Kids'], ['🌱', 'Outdoor'], ['📦', 'Other']
 ];
 
 export default function Home() {
@@ -21,7 +21,7 @@ export default function Home() {
     <View style={styles.hero}><Text style={styles.heroKicker}>LOCAL • TRUSTED • PRACTICAL</Text><Text style={styles.heroTitle}>What can we share today?</Text><Text style={styles.heroBody}>Find useful items, lend a hand, or see what your neighbours are talking about.</Text><View style={styles.heroButtons}><Pressable onPress={() => router.push('/(tabs)/marketplace')} style={styles.primary}><Text style={styles.primaryText}>Explore marketplace</Text></Pressable><Pressable onPress={() => router.push('/create-listing')} style={styles.secondary}><Text style={styles.secondaryText}>Post an item</Text></Pressable></View></View>
     <SectionTitle title="Browse by category" action="See all" onPress={() => router.push('/(tabs)/marketplace')} />
     <View style={styles.categoryGrid}>{categories.map(([emoji, label]) => <Pressable key={label} onPress={() => router.push({ pathname: '/search', params: { category: label } })} style={styles.category}><Text style={styles.emoji}>{emoji}</Text><Text style={styles.categoryText}>{label}</Text></Pressable>)}</View>
-    <SectionTitle title="Nearby listings" action="View all" onPress={() => router.push('/(tabs)/marketplace')} />
+    <SectionTitle title="Latest listings" action="View all" onPress={() => router.push('/(tabs)/marketplace')} />
     {listings.slice(0, 2).map((listing) => <ListingCard key={listing.id} listing={listing} />)}
     <SectionTitle title="Community pulse" action="Open feed" onPress={() => router.push('/(tabs)/community')} />
     {posts[0] && <Pressable accessibilityRole="button" accessibilityLabel={`Open community post: ${posts[0].title}`} onPress={() => router.push({ pathname: '/community/[id]', params: { id: posts[0].id } })} style={styles.postCard}><Text style={styles.postTitle}>{posts[0]?.title}</Text><Text style={styles.postBody} numberOfLines={2}>{posts[0]?.content}</Text><Text style={styles.postMeta}>{posts[0]?.location} • {posts[0]?.userName}</Text></Pressable>}

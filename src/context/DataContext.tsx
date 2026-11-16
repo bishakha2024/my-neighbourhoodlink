@@ -19,7 +19,7 @@ const initial = () => ({
   reviews: isFirebaseConfigured ? [] as Review[] : mock.reviews,
   postLikes: [] as PostLike[], postComments: [] as PostComment[], reports: [] as Report[],
   listingLikes: [] as ListingLike[], listingComments: [] as ListingComment[], seenListingIds: [] as string[],
-  readIds: [] as string[], preferences: defaults,
+  readIds: [] as string[], savedKeys: [] as string[], preferences: defaults,
 });
 
 function useAppData() {
@@ -48,7 +48,7 @@ function useAppData() {
       if (raw) {
         const saved = JSON.parse(raw);
         const base = initial();
-        setData({ ...base, ...(!isFirebaseConfigured ? saved : {}), preferences: { ...defaults, ...saved.preferences }, seenListingIds: saved.seenListingIds ?? [], readIds: saved.readIds ?? (saved.notifications ?? []).filter((item: { read: boolean }) => item.read).map((item: { id: string }) => item.id) });
+        setData({ ...base, ...(!isFirebaseConfigured ? saved : {}), preferences: { ...defaults, ...saved.preferences }, savedKeys: saved.savedKeys ?? [], seenListingIds: saved.seenListingIds ?? [], readIds: saved.readIds ?? (saved.notifications ?? []).filter((item: { read: boolean }) => item.read).map((item: { id: string }) => item.id) });
       }
       if (isFirebaseConfigured && user && db) {
         const profile = await getDoc(doc(db, 'Users', user.id));
@@ -63,7 +63,7 @@ function useAppData() {
 
   useEffect(() => {
     if (hydratedFor !== storageKey) return;
-    const saved = isFirebaseConfigured ? { preferences: data.preferences, readIds: data.readIds, seenListingIds: data.seenListingIds } : data;
+    const saved = isFirebaseConfigured ? { savedKeys: data.savedKeys, preferences: data.preferences, readIds: data.readIds, seenListingIds: data.seenListingIds } : data;
     persistence.current = persistence.current.catch(() => {}).then(() => AsyncStorage.setItem(storageKey, JSON.stringify(saved))).catch((error) => setDataError(`Could not save data: ${error.message}`));
   }, [data, hydratedFor, storageKey]);
 
@@ -139,6 +139,17 @@ function useAppData() {
     if (post.userId !== requireUser().id) throw new Error('Invalid post owner.');
     await commit(() => remote.savePost(post), (current) => ({ ...current, posts: upsert(current.posts, post) }));
   };
+  const updatePost = async (post: CommunityPost) => {
+    const owner = requireUser().id;
+    if (post.userId !== owner || !data.posts.some(item => item.id === post.id && item.userId === owner)) throw new Error('Only the owner can edit this post.');
+    if (!post.title.trim() || !post.content.trim()) throw new Error('A title and message are required.');
+    await commit(() => remote.savePost(post), current => ({ ...current, posts: upsert(current.posts, post) }));
+  };
+  const deletePost = async (id: string) => {
+    const owner = requireUser().id;
+    if (!data.posts.some(item => item.id === id && item.userId === owner)) throw new Error('Only the owner can delete this post.');
+    await commit(() => remote.deletePost(id), current => ({ ...current, posts: current.posts.filter(item => item.id !== id), postLikes: current.postLikes.filter(item => item.postId !== id), postComments: current.postComments.filter(item => item.postId !== id) }));
+  };
   const addMessage = async (message: Message) => {
     const sender = requireUser();
     if (message.senderId !== sender.id || !message.receiverId || message.receiverId === sender.id || !message.text.trim()) throw new Error('Choose another neighbour and enter a message.');
@@ -172,6 +183,11 @@ function useAppData() {
     const comment: ListingComment = { id: newId('listing-comment'), listingId, userId: author.id, userName: author.fullName, content: content.trim(), createdAt: new Date().toISOString() };
     await commit(() => remote.saveListingComment(comment), current => ({ ...current, listingComments: upsert(current.listingComments, comment) }));
   };
+  const toggleSaved = (kind: 'listing' | 'service', id: string) => {
+    requireUser();
+    const key = `${kind}:${id}`;
+    setData(current => ({ ...current, savedKeys: current.savedKeys.includes(key) ? current.savedKeys.filter(item => item !== key) : [...current.savedKeys, key] }));
+  };
   const markMarketplaceSeen = () => setData(current => ({ ...current, seenListingIds: [...new Set([...current.seenListingIds, ...current.listings.map(item => item.id)])] }));
   const markConversationRead = (otherId: string) => setData(current => ({ ...current, readIds: [...new Set([...current.readIds, ...current.messages.filter(item => item.senderId === otherId && item.receiverId === user?.id).map(item => `message-${item.id}`)])] }));
   const addReview = async (reviewedUserId: string, rating: number, comment: string) => {
@@ -193,7 +209,7 @@ function useAppData() {
   };
   const markNotificationRead = (id: string) => setData((current) => ({ ...current, readIds: [...new Set([...current.readIds, id])] }));
   const notifications = useMemo(() => user ? buildNotifications(user.id, data, data.readIds, data.preferences) : [], [data, user?.id]);
-  return { ...data, notifications, loading: hydratedFor !== storageKey || (isFirebaseConfigured && !!user && syncedFor !== storageKey), dataError, retrySync: () => setRetry((current) => current + 1), markMarketplaceSeen, markConversationRead, toggleListingLike, addListingComment, addListing, updateListing, deleteListing, addService, updateService, deleteService, addPost, addMessage, togglePostLike, addPostComment, addReview, addReport, updatePreferences, markNotificationRead };
+  return { ...data, toggleSaved, notifications, loading: hydratedFor !== storageKey || (isFirebaseConfigured && !!user && syncedFor !== storageKey), dataError, retrySync: () => setRetry((current) => current + 1), markMarketplaceSeen, markConversationRead, toggleListingLike, addListingComment, addListing, updateListing, deleteListing, addService, updateService, deleteService, addPost, updatePost, deletePost, addMessage, togglePostLike, addPostComment, addReview, addReport, updatePreferences, markNotificationRead };
 }
 
 const DataContext = createContext<ReturnType<typeof useAppData> | undefined>(undefined);
