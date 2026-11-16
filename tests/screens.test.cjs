@@ -19,6 +19,8 @@ function screen(file, { params = {}, user = { id: 'me' }, data = {} } = {}) {
   vm.runInNewContext(source, { exports, console, require: (name) => {
     if (name in mocks) return mocks[name];
     if (name.endsWith('/ProfilePhoto')) return { ProfilePhoto: ({ uri }) => React.createElement('Image', { source: { uri } }) };
+    if (name.endsWith('/categories')) return { ITEM_CATEGORIES: ['Home', 'Tools', 'Kids', 'Outdoor', 'Sports', 'Other'], SERVICE_CATEGORIES: ['Home', 'Education', 'Pets', 'Outdoor', 'Wellness', 'Other'] };
+    if (name.endsWith('/ServiceCard')) return { ServiceCard: ({ service }) => React.createElement('Text', null, service.serviceName) };
     if (name.endsWith('/ListingCard')) return { ListingCard: ({ listing }) => React.createElement('Text', null, listing.title) };
     if (name.endsWith('/Chip')) return { Chip: ({ label, onPress }) => React.createElement('Pressable', { onPress }, React.createElement('Text', null, label)) };
     if (name.endsWith('/Screen')) return { Screen: ({ children }) => React.createElement('Screen', null, children) };
@@ -94,4 +96,34 @@ test('All marketplace includes searchable services and Services excludes items',
  await act(async () => button(renderer, 'Services').props.onPress());
  assert.match(text(renderer.toJSON()), /Tutoring/); assert.doesNotMatch(text(renderer.toJSON()), /Drill/);
  await act(async () => renderer.unmount());
+});
+
+test('advanced search includes services and applies query category and availability to marketplace', async () => {
+ const setup = screen('app/search.tsx', { params: { q: 'math', category: 'Education', active: 'true' }, data: { listings: [], services: [{ id: 's', serviceName: 'Math tutor', description: 'Lessons', category: 'Education' }] } });
+ const renderer = await render(setup.component);
+ assert.match(text(renderer.toJSON()), /Math tutor/);
+ await act(async () => button(renderer, 'Apply filters').props.onPress());
+ assert.equal(setup.routes[0].pathname, '/(tabs)/marketplace');
+ assert.equal(setup.routes[0].params.q, 'math');
+ assert.equal(setup.routes[0].params.category, 'Education');
+ assert.equal(setup.routes[0].params.active, 'true');
+ await act(async () => renderer.unmount());
+});
+
+test('post edit page limits access and saves edits without replacing post metadata', async () => {
+ const post = {id:'p',userId:'me',title:'Original',content:'Message',createdAt:'2026-10-06',location:'Hamilton',images:[]};
+ const saved=[];
+ const setup=screen('app/community/edit/[id].tsx',{params:{id:'p'},data:{posts:[post],loading:false,updatePost:async p=>saved.push(p)}});
+ const renderer=await render(setup.component);
+ await act(async()=>renderer.root.findAllByType('TextInput')[0].props.onChangeText('Updated title'));
+ await act(async()=>button(renderer,'Save changes').props.onPress());
+ assert.equal(saved[0].title,'Updated title');
+ assert.equal(saved[0].createdAt,post.createdAt);
+ assert.equal(saved[0].content,'Message');
+ await act(async()=>renderer.unmount());
+ const blocked=screen('app/community/edit/[id].tsx',{params:{id:'p'},user:{id:'other'},data:{posts:[post],loading:false}});
+ const other=await render(blocked.component);
+ assert.match(text(other.toJSON()),/permission/);
+ assert.equal(other.root.findAllByType('TextInput').length,0);
+ await act(async()=>other.unmount());
 });

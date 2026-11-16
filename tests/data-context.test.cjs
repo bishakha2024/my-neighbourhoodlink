@@ -19,7 +19,7 @@ async function harness(firebase = false) {
     subscribeCollection: (name, receive) => { subscribers.set(name, receive); return () => subscribers.delete(name); },
     subscribeMessages: (_id, receive) => { subscribers.set('Messages', receive); return () => subscribers.delete('Messages'); },
   };
-  for (const name of ['deleteService', 'saveListingLike', 'saveListingComment', 'deleteListing', 'saveListing', 'saveService', 'savePost', 'saveMessage', 'saveReview', 'saveReport', 'savePostComment', 'savePostLike', 'savePreferences']) remote[name] = async () => { if (fail) throw new Error('Offline'); if (delayed) await delayed; };
+  for (const name of ['deletePost', 'deleteService', 'saveListingLike', 'saveListingComment', 'deleteListing', 'saveListing', 'saveService', 'savePost', 'saveMessage', 'saveReview', 'saveReport', 'savePostComment', 'savePostLike', 'savePreferences']) remote[name] = async () => { if (fail) throw new Error('Offline'); if (delayed) await delayed; };
   const context = compile('src/context/DataContext.tsx', {
     react: React, 'react/jsx-runtime': require('react/jsx-runtime'),
     'firebase/firestore': { doc: () => ({}), getDoc: async () => ({ exists: () => false }) },
@@ -137,3 +137,31 @@ test('service CRUD enforces provider ownership and preserves failed deletion', a
  h.fail(false); await h.run(data => data.deleteService('s1'));
  assert.equal(h.state.services.length, 0); await h.close();
 });
+
+test('bookmarks persist locally, toggle independently for services and isolate accounts', async () => {
+ const h = await harness(true);
+ await h.run(data => { data.toggleSaved('listing', 'same'); data.toggleSaved('service', 'same'); });
+ assert.equal(h.state.savedKeys.length, 2);
+ const stored = [...h.storage.values()].map(value => JSON.parse(value));
+ assert.ok(stored.some(value => value.savedKeys?.includes('listing:same')));
+ await h.run(data => data.toggleSaved('listing', 'same'));
+ assert.deepEqual(Array.from(h.state.savedKeys), ['service:same']);
+ await h.switchUser({ id: 'another', fullName: 'Another' });
+ assert.equal(h.state.savedKeys.length, 0);
+ await h.switchUser({ id: 'owner', fullName: 'Owner' });
+ assert.deepEqual(Array.from(h.state.savedKeys), ['service:same']);
+ await h.close();
+});
+
+ test('post management rejects nonowners and preserves state on failed deletion', async () => {
+ const h = await harness();
+ await h.run(data => data.addPost({id:'owned',userId:'owner',title:'Original',content:'Body'}));
+ await assert.rejects(h.state.updatePost({id:'post',userId:'other',title:'Changed',content:'Text'}), /owner/);
+ await h.run(data => data.updatePost({...data.posts.find(p => p.id === 'owned'),title:'Updated'}));
+ assert.equal(h.state.posts.find(p => p.id === 'owned').title,'Updated');
+ h.fail(true); await assert.rejects(h.state.deletePost('owned'), /Offline/);
+ assert.ok(h.state.posts.some(p => p.id === 'owned'));
+ h.fail(false);await h.run(data => data.deletePost('owned'));
+ assert.ok(!h.state.posts.some(p => p.id === 'owned'));
+ await h.close();
+ });

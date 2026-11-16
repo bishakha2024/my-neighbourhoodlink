@@ -9,8 +9,9 @@ import { colors, shadow } from '../../src/theme/colors';
 
 export default function CommunityPostDetails() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { loading, posts, postLikes, postComments, togglePostLike, addPostComment } = useData();
+  const { loading, posts, postLikes, postComments, togglePostLike, addPostComment, deletePost } = useData();
   const { user } = useAuth();
+  const [saving, setSaving] = useState(false);
   const [comment, setComment] = useState('');
   const [liking, setLiking] = useState(false);
   const [commenting, setCommenting] = useState(false);
@@ -51,7 +52,10 @@ export default function CommunityPostDetails() {
   });
 
   return <Screen>
-    <AppHeader title="Community post" back />
+    <AppHeader title="Community post" back />{post.userId === user?.id && <View style={{flexDirection:'row',gap:12}}>
+      <Pressable accessibilityRole="button" disabled={saving} onPress={() => router.push({pathname:'/community/edit/[id]',params:{id:post.id}})} style={{flex:1,backgroundColor:colors.primarySoft,borderRadius:14,padding:15,alignItems:'center',borderWidth:1,borderColor:colors.line}}><Text style={{color:colors.primaryDark,fontWeight:'800'}}>✎  Edit post</Text></Pressable>
+      <Pressable accessibilityRole="button" disabled={saving} onPress={() => Alert.alert('Delete this post?', 'Your post, likes, and comments will be removed. This cannot be undone.', [{text:'Keep post',style:'cancel'},{text:'Delete post',style:'destructive',onPress:async () => {setSaving(true);try {await deletePost(post.id);router.replace('/(tabs)/community');}catch(error:any){Alert.alert('Could not delete post',error.message);}finally{setSaving(false);}}}])} style={{flex:1,backgroundColor:'#FDEEEE',borderRadius:14,padding:15,alignItems:'center',opacity:saving?.6:1}}><Text style={{color:colors.danger,fontWeight:'800'}}>{saving ? 'Deleting…' : 'Delete post'}</Text></Pressable>
+    </View>}
     <View style={styles.card}>
       <View style={styles.row}>
         <View style={styles.avatar}><Text style={styles.avatarText}>{post.userName.charAt(0)}</Text></View>
