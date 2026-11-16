@@ -1,3 +1,4 @@
+import { ITEM_CATEGORIES, SERVICE_CATEGORIES } from '../../../src/lib/categories';
 import { ListingPhotos, uploadListingPhotos, type ListingPhoto } from '../../../src/components/ListingPhotos';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
@@ -63,7 +64,7 @@ function ListingEditor({ listing }: { listing: Listing }) {
     <Text style={styles.label}>Description</Text>
     <TextInput inputAccessoryViewID="screen-keyboard-toolbar" accessibilityLabel="Listing description" value={description} onChangeText={setDescription} multiline style={[styles.input, styles.description]} />
     <Text style={styles.label}>Category</Text>
-    <View style={styles.chips}>{['Home', 'Tools', 'Kids', 'Outdoor', 'Sports', 'Other'].map((value) => <Chip key={value} label={value} selected={category === value} onPress={() => setCategory(value)} />)}</View>
+    <View style={styles.chips}>{ITEM_CATEGORIES.map((value) => <Chip key={value} label={value} selected={category === value} onPress={() => setCategory(value)} />)}</View>
     <Text style={styles.label}>Location</Text>
     <TextInput inputAccessoryViewID="screen-keyboard-toolbar" accessibilityLabel="Listing location" value={location} onChangeText={setLocation} style={styles.input} />
     {listing.type === 'sale' && <><Text style={styles.label}>Price</Text><TextInput inputAccessoryViewID="screen-keyboard-toolbar" accessibilityLabel="Listing price" value={price} onChangeText={setPrice} keyboardType="decimal-pad" style={styles.input} /></>}

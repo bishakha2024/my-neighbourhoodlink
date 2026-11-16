@@ -77,3 +77,12 @@ export async function deleteService(id: string) {
   if (!db || !isFirebaseConfigured) return;
   await deleteDoc(doc(db, 'Services', id));
 }
+
+export async function deletePost(id: string) {
+ if (!db || !isFirebaseConfigured) return;
+ for (const name of ['Post Likes', 'Post Comments']) {
+ const snapshot = await getDocs(query(collection(db, name), where('postId', '==', id)));
+ for (const item of snapshot.docs) await deleteDoc(item.ref);
+ }
+ await deleteDoc(doc(db, 'Community Posts', id));
+}
